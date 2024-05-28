@@ -1,0 +1,48 @@
+zabbix_export:
+  version: '6.0'
+  date: '2024-05-28T18:02:36Z'
+  groups:
+    - uuid: 7df96b18c230490a9a0a9e2307226338
+      name: Templates
+  templates:
+    - uuid: f8388878f155426cb68ebe925cac1a10
+      template: 'UCGU Temps'
+      name: 'UCGU Temps'
+      description: 'Template for monitoring temperatures on Ubiquiti Unifi Cloud Gateway Ultra (UCGU)'
+      groups:
+        - name: Templates
+      discovery_rules:
+        - uuid: d28dad25cd104bdbaa8e9eb8dff725aa
+          name: 'Discover Temperature Sensors'
+          key: 'vfs.dir.get[{$TEMP_SENSOR_DIR}]'
+          delay: 24h
+          item_prototypes:
+            - uuid: 08ee66b3dd8d409b95bc2c335743b5b4
+              name: '{#FILENAME} Temperature'
+              key: 'vfs.file.contents["{$TEMP_SENSOR_DIR}{#FILENAME}/temp"]'
+              delay: 5m
+              history: 30d
+              value_type: FLOAT
+              units: ºC
+              preprocessing:
+                - type: MULTIPLIER
+                  parameters:
+                    - '0.001'
+              trigger_prototypes:
+                - uuid: a36ad7371542403d934d64413b2b332d
+                  expression: 'last(/UCGU Temps/vfs.file.contents["{$TEMP_SENSOR_DIR}{#FILENAME}/temp"],#3)>{$TEMP_WARN}'
+                  recovery_mode: RECOVERY_EXPRESSION
+                  recovery_expression: 'last(/UCGU Temps/vfs.file.contents["{$TEMP_SENSOR_DIR}{#FILENAME}/temp"],#3)<={$TEMP.WARN}'
+                  name: 'UCGU {#FILENAME} high'
+                  opdata: 'Temperature: {ITEM.LASTVALUE1}'
+                  priority: WARNING
+          lld_macro_paths:
+            - lld_macro: '{#FILENAME}'
+              path: $.basename
+      macros:
+        - macro: '{$TEMP_SENSOR_DIR}'
+          value: /sys/class/thermal/
+          description: 'Directory to read temperature sensors from'
+        - macro: '{$TEMP_WARN}'
+          value: '50'
+          description: 'Temperature value to warn at'
